@@ -21,3 +21,11 @@ Mat MyCanny3(Mat src, int *thresholds,double edgePercent, double aperture_size =
 void edgeForImage(double edgePercent);
 void cutImage(int x1, int y1, int x2, int y2);
 void findROI();
+void testHough();
+void test_min_dist();
+void applyClahe();
+void applyHoughLine();
+void applyPyramid();
+void applyHoughCircle();
+void findSquare();
+
