@@ -1,19 +1,80 @@
 #include "stdafx.h"
 #include "common.h"
+string time_day() {
+	string res;
+	time_t nowtime;
+	nowtime = time(NULL);
 
+	tm *ltm = localtime(&nowtime);
+	int year = 1900 + ltm->tm_year;
+	int mon = 1 + ltm->tm_mon;
+	int day = ltm->tm_mday;
+
+
+	res = to_string(year) + "-" + to_string(mon) + "-" + to_string(day);
+	return res;
+}
+string time_now() {
+	string res;
+	time_t nowtime;
+	nowtime = time(NULL);
+	
+	tm *ltm = localtime(&nowtime);
+	int year = 1900 + ltm->tm_year;
+	int mon = 1 + ltm->tm_mon;
+	int day = ltm->tm_mday;
+	int hour = ltm->tm_hour;
+	int min = ltm->tm_min;
+	int sec = ltm->tm_sec;
+
+	res = to_string(year) + "-" + to_string(mon) + "-" + to_string(day) + "_" + to_string(hour) + "-" + to_string(min) + "-" + to_string(sec);
+	return res;
+
+	//cout << 1900 + ltm->tm_year << endl;
+	//cout << 1 + ltm->tm_mon << endl;
+	//cout << ltm->tm_mday << endl;
+	//cout << ltm->tm_hour << ":";
+	//cout << ltm->tm_min << ":";
+	//cout << ltm->tm_sec << endl;
+}
+
+
+
+void processVideos(string in_folder, string out_folder) {
+	fstream fout(in_folder + "video_info.txt", ios::out);
+	if (!fout.is_open()) {
+		cout << "File opening error!" << endl;
+		return;
+	}
+
+	vector<string> names;
+	glob(in_folder + "*.*", names);
+	for (int j = 0; j < names.size(); j++) {
+		string video_name = names[j];
+
+		string name = video_name.substr(video_name.find_last_of("\\") + 1);
+		name = name.substr(0, name.find_last_of("."));
+		fout << name << endl;
+		string resultFolder = out_folder + name + "\\";
+		makeDirectoty(resultFolder);
+		cout << "processing " << name << endl;
+		videoToImages(5, 01, video_name, resultFolder);
+	}
+	fout.close();
+}
 void videoToImages(int period, int file_count, string videoFileName, string resultFileName) {
 
 	CvCapture *capture = cvCreateFileCapture(videoFileName.c_str());
 	if (capture == NULL) {
 		cout << "Error initialize the capture! " << endl;
-		return ;
+		return;
 	}
 	IplImage *frame = new IplImage();
 	//Mat frame;
 	string imgName;
 	while (1) {
-		
-		
+
+
 		for (int i = 0; i < period; i++) {
 			frame = cvQueryFrame(capture);
 			if (!frame) {
@@ -23,20 +84,20 @@ void videoToImages(int period, int file_count, string videoFileName, string resu
 		}
 		cout << file_count << endl;
 
-		int x1 = 530;
-		int y1 = 186;
-		int x2 = 863;
-		int y2 = 687;
-		Rect rect(x1, y1, x2, y2);
+		//int x1 = 530;
+		//int y1 = 186;
+		//int x2 = 863;
+		//int y2 = 687;
+		//Rect rect(x1, y1, x2, y2);
 		Mat imageFrame = cvarrToMat(frame, true);
-		Mat image_roi = imageFrame(rect);
-		
-		imgName = "img_" + to_string(file_count)+".jpg";
+		//Mat image_roi = imageFrame(rect);
+
+		imgName = "img_" + to_string(file_count) + ".jpg";
 		file_count++;
 		//cout << imgName << endl;
 		string fileName = resultFileName + imgName;
-		
-		imwrite(fileName, image_roi);
+
+		imwrite(fileName, imageFrame);
 		//cout << fileName << endl;
 		//waitKey();
 		//cvSaveImage(fileName.c_str(), frame);
@@ -46,6 +107,453 @@ void videoToImages(int period, int file_count, string videoFileName, string resu
 	return;
 
 }
+void drawRectangle(string in_folder, string out_folder, int x, int y, int width, int height) {
+	
+	Rect select;
+	select.x = x;
+	select.y = y;
+	select.width = width;
+	select.height = height;
+	vector<string> names;
+	glob(in_folder + "*.*", names);
+	string saving_path = out_folder;
+	makeDirectoty(saving_path);
+	
+	string info_path = saving_path + "info\\";
+	makeDirectoty(info_path);
+	string infotxtPath = info_path + "info.txt";
+	fstream fout(infotxtPath, ios::out);
+	if (!fout.is_open()) {
+		cout << "file open ERROR" << endl;
+		return;
+	}
+	fout << "x " << x << endl
+		<< "y " << y << endl
+		<< "width " << width << endl
+		<< "height " << height << endl;
+	fout.close();
+
+	///cout << names.size() << endl;
+	for (int j = 0; j < names.size(); j++) {
+		string image_name = names.at(j);
+		cout << " processing " << image_name << endl;
+		string name = image_name.substr(image_name.find_last_of("\\") + 1);
+		name = name.substr(0, name.find_last_of("."));
+		string save_name = saving_path + name + "_x_" + to_string(x) + "_y_" + to_string(y) + "_width_" + to_string(width) + "_height_" + to_string(height)+".jpg";
+		//string save_name = saving_path + name + ".jpg";
+		Mat src = imread(image_name);
+		Mat workImg = src.clone();
+		if (workImg.empty()) {
+			cout << "fail to load Img" << endl;
+			return;
+		}
+
+		//Mat dst;
+
+		//Mat dstImage = workImg(select);
+		rectangle(workImg, select, Scalar(0, 0, 255), 3, 8, 0);
+
+		imwrite(save_name, workImg);
+
+
+	}
+}
+void cutImage(string in_folder, string out_folder, int x, int y, int width, int height) {
+	Rect select;
+	select.x = x;
+	select.y = y;
+	select.width = width;
+	select.height = height;
+	vector<string> names;
+	glob(in_folder + "*.*", names);
+	string saving_path = out_folder;
+	makeDirectoty(saving_path);
+	for (int j = 0; j < names.size(); j++) {
+		string image_name = names.at(j);
+		cout << " processing " << image_name << endl;
+		string name = image_name.substr(image_name.find_last_of("\\") + 1);
+		name = name.substr(0, name.find_last_of("."));
+		string save_name = saving_path + name + ".jpg";
+
+		Mat src = imread(image_name);
+		Mat workImg = src.clone();
+		if (workImg.empty()) {
+			cout << "fail to load Img" << endl;
+			return;
+		}
+
+		//Mat dst;
+
+		Mat dstImage = workImg(select);
+
+
+		imwrite(save_name, dstImage);
+	}
+}
+void applyClahe(string in_folder, string out_folder) {
+
+	vector<string> names;
+	glob(in_folder + "*.*", names);
+	string saving_path = out_folder;
+	makeDirectoty(saving_path);
+
+	for (int j = 0; j < names.size(); j++) {
+		string image_name = names.at(j);
+
+		cout << " processing " << image_name << endl;
+		string name = image_name.substr(image_name.find_last_of("\\") + 1);
+		name = name.substr(0, name.find_last_of("."));
+		string save_name = saving_path + name + ".jpg";
+
+		Mat src = imread(image_name);
+		Mat workImg = src.clone();
+		if (workImg.empty()) {
+			cout << "fail to load Img" << endl;
+			return;
+		}
+
+		Mat clahe_img;
+		cv::cvtColor(workImg, clahe_img, CV_BGR2Lab);
+		vector<Mat> channels(3);
+		cv::split(clahe_img, channels);
+
+		Ptr<CLAHE> clahe = createCLAHE();
+		//Ptr<HE> ahe = createHE();
+		clahe->setClipLimit(4.);
+		Mat dst;
+		clahe->apply(channels[0], dst);
+		dst.copyTo(channels[0]);
+
+		clahe->apply(channels[1], dst);
+		dst.copyTo(channels[1]);
+
+		clahe->apply(channels[2], dst);
+		dst.copyTo(channels[2]);
+
+		cv::merge(channels, clahe_img);
+
+		Mat image_clahe;
+		cv::cvtColor(clahe_img, image_clahe, CV_Lab2BGR);
+		//imshow("image clahe", image_clahe);
+		cv::imwrite(save_name, image_clahe);
+
+
+	}
+
+
+}
+void houghCircleTxt(string in_path, string out_path, double edgePercent, double param2, int maxRadius, int minRadius, int minDist) {
+	Mat medianImg;
+	Mat gaussImg;
+	Mat grayImg;
+	Mat houghCirclesImg;
+	//string file_str[5] = { "2019-02-25_12-05-26_3","2019-02-25_12-08-24","2019-02-25_12-12-23","2019-02-25_12-17-49","2019-02-25_12-23-39" };
+	string file_name = "info.txt";
+
+
+	//string img_path = res_path + file_str[i] + "\\";
+	string img_path = in_path;
+
+
+	vector<string> names;
+
+	glob(img_path + "*.*", names);
+	sort(names.begin(), names.end(), cmp);
+	//string saving_path = out_path + file_str[i]+"_param1" +to_string(int(param1))+"_param2" + to_string(int(param2))+ "\\" ;
+	string saving_path = out_path;
+	makeDirectoty(saving_path);
+
+	ofstream fout(saving_path + file_name, ios::out);
+
+	if (!fout.is_open()) {
+		cerr << "Error: " << strerror(errno) << endl;
+		return;
+	}
+	//return;
+	for (int j = 0; j < names.size(); j++) {
+		string image_name = names.at(j);
+		cout << "processing " << image_name << endl;
+
+		string name = image_name.substr(image_name.find_last_of("\\") + 1);
+		name = name.substr(0, name.find_last_of("."));
+		string save_name = saving_path + name + ".jpg";
+		Mat src = imread(image_name);
+
+		Mat workImg = src.clone();
+		if (workImg.empty()) {
+			cout << "fail to load Img" << endl;
+			return;
+		}
+
+		cvtColor(workImg, grayImg, CV_BGR2GRAY);
+
+		medianBlur(grayImg, medianImg, 3);
+		//cv::GaussianBlur(grayImg, gaussImg, cv::Size(5, 5), 1.4);
+		int *thresholds = new int[2];
+		getThreshold(workImg, thresholds, edgePercent);
+		double param1 = thresholds[0];
+		vector<Vec3f> pcircles;
+		HoughCircles(medianImg, pcircles, CV_HOUGH_GRADIENT, 1.5, minDist, param1, param2, minRadius, maxRadius);
+		//if (pcircles.size() != 0) {
+		int pos = name.find_last_of('_') + 1;
+		string num_name = name.substr(pos, name.size() - pos + 1);
+		fout << num_name << endl
+			<< pcircles.size() << endl;
+			//return;
+			//fout << "method : CV_HOUGH_GRADIENT" << endl
+			//	<< "dp = " << 1.5 << endl
+			//	<< "minDist = " << minDist << endl
+			//	<< "param1 = " << param1 << endl
+			//	<< "param2 = " << param2 << endl
+			//	<< "minRadius = " << minRadius << endl
+			//	<< "maxRadius = " << maxRadius << endl
+			//	<< "radius" << "  " << "pcircles[i][0]" << "  " << "pcircles[i][1]" << endl;
+		//}
+		for (size_t i = 0; i < pcircles.size(); i++) {
+			int radius = cvRound(pcircles[i][2]);
+			Point center(cvRound(pcircles[i][0]), cvRound(pcircles[i][1]));
+			if (pcircles.size() != 0) {
+				fout << pcircles[i][2] << endl
+					<< pcircles[i][0] << endl
+					<< pcircles[i][1] << endl;
+				circle(src, center, 3, Scalar(0, 255, 0), -1, 8, 0);
+				circle(src, center, radius, Scalar(0, 255, 0), 3, 8, 0);
+			}
+			//fout << endl << endl;
+		}
+		delete[]thresholds;
+		imwrite(save_name, src);
+	}
+	fout.close();
+}
+void houghCircle(string in_path, string out_path, double edgePercent, double param2, int maxRadius, int minRadius, int minDist) {
+	//int minRadius = 0;
+	//double minDist = 40;
+	//int maxRadius = 55;
+	//double param2 = 100;
+	//Mat src;
+	Mat medianImg;
+	Mat gaussImg;
+	Mat grayImg;
+	Mat houghCirclesImg;
+	//string file_str[5] = { "2019-02-25_12-05-26_3","2019-02-25_12-08-24","2019-02-25_12-12-23","2019-02-25_12-17-49","2019-02-25_12-23-39" };
+	string file_name = "hough_circles_info.txt";
+	//string img_path = res_path + file_str[i] + "\\";
+	string img_path = in_path;
+	vector<string> names;
+	glob(img_path + "*.*", names);
+	sort(names.begin(), names.end(), cmp);
+	//string saving_path = out_path + file_str[i]+"_param1" +to_string(int(param1))+"_param2" + to_string(int(param2))+ "\\" ;
+	string saving_path = out_path;
+	makeDirectoty(saving_path);
+	ofstream fout(saving_path + file_name, ios::out);
+	if (!fout.is_open()) {
+		cerr << "Error: " << strerror(errno) << endl;
+		return;
+	}
+	for (int j = 0; j < names.size(); j++) {
+		string image_name = names[j];
+		cout << "processing " << image_name << endl;
+		//cout << "1" << endl;
+		string name = image_name.substr(image_name.find_last_of("\\") + 1);
+		name = name.substr(0, name.find_last_of("."));
+		string save_name = saving_path + name + ".jpg";
+		Mat src = imread(image_name);
+
+		Mat workImg = src.clone();
+		if (workImg.empty()) {
+			cout << "fail to load Img" << endl;
+			return;
+		}
+		cvtColor(workImg, grayImg, CV_BGR2GRAY);
+		medianBlur(grayImg, medianImg, 3);
+		//cv::GaussianBlur(grayImg, gaussImg, cv::Size(5, 5), 1.4);
+		int *thresholds = new int[2];
+		getThreshold(workImg, thresholds, edgePercent);
+		double param1 = thresholds[0];
+		//cout << thresholds[0] <<" "<< thresholds[1] << endl;
+		vector<Vec3f> pcircles;
+		//int method, double dp, double minDist,
+		//	double param1 = 100, double param2 = 100,d
+		//	int minRadius = 0, int maxRadius = 0 
+		HoughCircles(medianImg, pcircles, CV_HOUGH_GRADIENT, 1.5, minDist, param1, param2, minRadius, maxRadius);
+
+		if (pcircles.size() != 0) {
+			fout << name << endl;
+			fout << "method : CV_HOUGH_GRADIENT" << endl
+				<< "dp = " << 1.5 << endl
+				<< "minDist = " << minDist << endl
+				<< "param1 = " << param1 << endl
+				<< "param2 = " << param2 << endl
+				<< "minRadius = " << minRadius << endl
+				<< "maxRadius = " << maxRadius << endl
+				<< "radius" << "  " << "pcircles[i][0]" << "  " << "pcircles[i][1]" << endl;
+
+		}
+
+		for (size_t i = 0; i < pcircles.size(); i++) {
+			int radius = cvRound(pcircles[i][2]);
+
+			//fout << pcircles[i][2] << endl;
+			//if (radius > 45 || radius < 28)
+			//	continue;
+			Point center(cvRound(pcircles[i][0]), cvRound(pcircles[i][1]));
+			//if (pcircles.size() != 0 && radius <= 40 ) {
+			if (pcircles.size() != 0) {
+				fout << i + 1 << "  " << pcircles[i][2] << "  " << pcircles[i][0] << "  " << pcircles[i][1] << endl;
+				circle(src, center, 3, Scalar(0, 255, 0), -1, 8, 0);
+				circle(src, center, radius, Scalar(0, 255, 0), 3, 8, 0);
+
+			}
+			fout << endl << endl;
+
+		}
+
+		//imshow("result", src);
+		delete[]thresholds;
+		//cout << "save name : " << save_name << endl;
+		imwrite(save_name, src);
+
+		//if (count == 0)
+		//	break;
+	}
+	//if (count == 0)
+	//	return;
+	fout.close();
+
+}
+
+
+void detectEllipsedir(string in_path,string out_path, int slider_pos) {
+	string file_name = "info.txt";
+	string img_path = in_path;
+
+
+	vector<string> names;
+
+	glob(img_path + "*.*", names);
+	sort(names.begin(), names.end(), cmp);
+	//string saving_path = out_path + file_str[i]+"_param1" +to_string(int(param1))+"_param2" + to_string(int(param2))+ "\\" ;
+	string saving_path = out_path;
+	makeDirectoty(saving_path);
+
+	ofstream fout(saving_path + file_name, ios::out);
+
+	if (!fout.is_open()) {
+		cerr << "Error: " << strerror(errno) << endl;
+		return;
+	}
+	//return;
+	for (int j = 0; j < names.size(); j++) {
+		string image_name = names.at(j);
+		cout << "processing " << image_name << endl;
+
+		string name = image_name.substr(image_name.find_last_of("\\") + 1);
+		name = name.substr(0, name.find_last_of("."));
+		string save_name = saving_path + name + ".jpg";
+		//Mat src = imread(image_name);
+
+
+
+
+		//cv::GaussianBlur(grayImg, gaussImg, cv::Size(5, 5), 1.4);
+		
+		
+		//if (pcircles.size() != 0) {
+		int pos = name.find_last_of('_') + 1;
+		string num_name = name.substr(pos, name.size() - pos + 1);
+
+		
+		//string image_name = "resource\\test\\img_33.jpg";
+		//string save_name = "resource\\test\\img_33_myellipse_47.jpg";
+		CvMemStorage* stor;
+		CvSeq* cont;
+		CvBox2D32f* box;
+		CvPoint* PointArray;
+		CvPoint2D32f* PointArray2D32f;
+		IplImage *src = 0, *workImg01 = 0, *workImg02 = 0, *workImg03 = 0;
+		if ((src = cvLoadImage(image_name.c_str(), 0)) == 0)
+			return;
+		workImg01 = cvCloneImage(src);
+		workImg02 = cvCloneImage(src);
+		workImg03 = cvCloneImage(src);
+		//Mat src = imread(image_name);
+		//Mat workImg01 = src.clone();
+		//Mat *workImg02 = src.clone();
+		//Mat *workImg03 = src.clone();
+
+
+		
+		int *thresholds = new int[2];
+		double edgePercent = 0.3;
+		getThreshold(src, thresholds, edgePercent);
+		double param1 = thresholds[0];
+		//int slider_pos = param1;
+		//int slider_pos = 57;
+		delete[]thresholds;
+
+		stor = cvCreateMemStorage(0);
+		cont = cvCreateSeq(CV_SEQ_ELTYPE_POINT, sizeof(CvSeq), sizeof(CvPoint), stor);
+
+		cvThreshold(workImg03, workImg02, slider_pos, 255, CV_THRESH_BINARY);
+		//IplImage(workImg02)
+		cvFindContours(workImg02, stor, &cont, sizeof(CvContour), CV_RETR_LIST, CV_CHAIN_APPROX_NONE, cvPoint(0, 0));
+		for (;cont;cont = cont->h_next) {
+			int i;
+			int count = cont->total;
+			CvPoint center;
+			CvSize size;
+			if (count < 6)
+				continue;
+			PointArray = (CvPoint*)malloc(count * sizeof(CvPoint));
+			PointArray2D32f = (CvPoint2D32f*)malloc(count * sizeof(CvPoint2D32f));
+			// Alloc memory for ellipse data.
+			box = (CvBox2D32f*)malloc(sizeof(CvBox2D32f));
+			cvCvtSeqToArray(cont, PointArray, CV_WHOLE_SEQ);
+			for (i = 0; i < count; i++)
+			{
+				PointArray2D32f[i].x = (float)PointArray[i].x;
+				PointArray2D32f[i].y = (float)PointArray[i].y;
+			}
+
+
+			cvFitEllipse(PointArray2D32f, count, box);
+
+			//cvDrawContours(&workImg02, cont, CV_RGB(255, 255, 255),CV_RGB(255, 255, 255), 0, 1, 8, cvPoint(0, 0));
+			center.x = cvRound(box->center.x);
+			center.y = cvRound(box->center.y);
+			size.width = cvRound(box->size.width*0.5);
+			size.height = cvRound(box->size.height*0.5);
+			box->angle = -box->angle;
+
+		/*	if (size.width <= 20 || size.width > 100 || size.height > 50)
+				continue;*/
+			if (size.width <= 10 || size.width > 100 || size.height <= 10 || size.height > 100)
+				continue;
+			cout << size.width << " " << size.height <<" "<< box->angle << endl;
+
+			// Draw ellipse.
+			cvEllipse(workImg01, center, size,
+				box->angle, 0, 360,
+				CV_RGB(100, 0, 255), 5, CV_AA, 0);
+			free(PointArray);
+			free(PointArray2D32f);
+			free(box);
+			cv::Mat save_img(workImg01, 0);
+
+			cv::imwrite(save_name, save_img);
+		}
+		cvReleaseImage(&src);
+		cvReleaseImage(&workImg01);
+		cvReleaseImage(&workImg02);
+		cvReleaseImage(&workImg03);
+		
+		
+	}
+	fout.close();
+
+}
+
 
 void makeDirectoty(string dirName) {
 	if (_access(dirName.c_str(), 0) == -1)
@@ -61,10 +569,119 @@ void makeDirectoty(string dirName) {
 	else {
 		cout << dirName << " already exists." << endl;
 	}
-	
-}
 
-Mat MyCanny3(Mat src, int *thresholds,double edgePercent, double aperture_size) {
+}
+void getThreshold(Mat src, int *thresholds, double edgePercent, int aperture_size) {
+	CvSize size;
+	int flags = aperture_size;
+	int lowerThreshold;
+	int upperThreshold;
+	int* mag_buf[3];
+	uchar* map;
+	ptrdiff_t mapstep;
+	int maxsize;
+	//int i, j;
+	CvMat mag_row;
+
+	size.width = src.cols;
+	size.height = src.rows;
+
+	//Mat1f magGrad(size.height, size.width, 0.f);
+
+	float maxGrad(0);
+	float val(0);
+
+
+
+
+	Mat workImg = Mat(src);
+	workImg = src.clone();
+	//Noise reduction
+	cv::GaussianBlur(src, workImg, cv::Size(5, 5), 1.4);
+
+	//calculating gradient magnitudes and directions
+	Mat magX = Mat(src.rows, src.cols, CV_32F);
+	Mat magY = Mat(src.rows, src.cols, CV_32F);
+	Mat magGrad = Mat(src.rows, src.cols, CV_32F);
+
+	cv::Sobel(workImg, magX, CV_32F, 1, 0, aperture_size);
+	cv::Sobel(workImg, magY, CV_32F, 0, 1, aperture_size);
+
+	cv::MatIterator_<float>itX = magX.begin<float>();
+	cv::MatIterator_<float>itXend = magX.end<float>();
+	cv::MatIterator_<float>it_magGrad = magGrad.begin<float>();
+
+	cv::MatIterator_<float>itY = magY.begin<float>();
+	cv::MatIterator_<float>itYend = magY.end<float>();
+
+	for (;itX != itXend; ++itX, ++it_magGrad, ++itY) {
+		const cv::Point pos = itX.pos();
+
+		val = float(abs(*itX) + abs(*itY));
+		*it_magGrad = val;
+		maxGrad = (val > maxGrad) ? val : maxGrad;
+
+	}
+	//% Normalize for threshold selection
+	//normalize(magGrad, magGrad, 0.0, 1.0, NORM_MINMAX);
+
+	//% Determine Hysteresis Thresholds
+
+	//set magic numbers
+	const int NUM_BINS = 64;
+	const double percent_of_pixels_not_edges = 1.0 - edgePercent;
+	const double threshold_ratio = 0.3;
+
+	//compute histogram
+	int bin_size = cvFloor(maxGrad / float(NUM_BINS) + 0.5f) + 1;
+	if (bin_size < 1) bin_size = 1;
+	int bins[NUM_BINS] = { 0 };
+
+	it_magGrad = magGrad.begin<float>();
+	cv::MatIterator_<float>it_magGrad_end = magGrad.end<float>();
+
+	for (;it_magGrad != it_magGrad_end; ++it_magGrad) {
+
+		int hgf = int(*it_magGrad);
+		bins[hgf / bin_size]++;
+	}
+
+
+	//for (int i = 0; i < size.height; ++i) {
+	//	float* _pmag = magGrad.ptr<float>(i);
+	//	for (int j = 0; j < size.width; ++j) {
+	//		int hgf = int(_pmag[j]);
+	//		bins[int(_pmag[j]) / bin_size]++;
+	//	}
+	//}
+
+	//select the thresholds
+	float total(0.f);
+	float target = float(size.height * size.width * percent_of_pixels_not_edges);
+	int low_thresh, high_thresh(0);
+	while (total < target) {
+		total += bins[high_thresh];
+		high_thresh++;
+	}
+	high_thresh *= bin_size;
+	low_thresh = cvFloor(threshold_ratio * float(high_thresh));
+
+	if (flags & CV_CANNY_L2_GRADIENT) {
+		Cv32suf ul, uh;
+		ul.f = (float)low_thresh;
+		uh.f = (float)high_thresh;
+
+		lowerThreshold = ul.i;
+		upperThreshold = uh.i;
+	}
+	else {
+		lowerThreshold = cvFloor(low_thresh);
+		upperThreshold = cvFloor(high_thresh);
+	}
+	thresholds[0] = upperThreshold;
+	thresholds[1] = lowerThreshold;
+}
+Mat MyCanny3(Mat src, int *thresholds, double edgePercent, double aperture_size) {
 	CvSize size;
 	int flags = aperture_size;
 	int lowerThreshold;
@@ -330,7 +947,7 @@ Mat MyCanny3(Mat src, int *thresholds,double edgePercent, double aperture_size) 
 				}
 
 				else if (currentDirection > 22.5 && currentDirection <= 67.5) {
-					if (pos.y>0 && pos.x<workImg.cols - 1)
+					if (pos.y > 0 && pos.x < workImg.cols - 1)
 					{
 						if (lowerThreshold <= sum.at<float>(cv::Point(pos.x + 1, pos.y - 1)) &&
 							returnImg.at<unsigned char>(pos.y - 1, pos.x + 1) != 64 &&
@@ -343,7 +960,7 @@ Mat MyCanny3(Mat src, int *thresholds,double edgePercent, double aperture_size) 
 							imageChanged = true;
 						}
 					}
-					if (pos.y<workImg.rows - 1 && pos.x>0)
+					if (pos.y < workImg.rows - 1 && pos.x>0)
 					{
 						if (lowerThreshold <= sum.at<float>(cv::Point(pos.x - 1, pos.y + 1)) &&
 							returnImg.at<unsigned char>(pos.y + 1, pos.x - 1) != 64 &&
@@ -360,7 +977,7 @@ Mat MyCanny3(Mat src, int *thresholds,double edgePercent, double aperture_size) 
 
 				else
 				{
-					if (pos.y>0)
+					if (pos.y > 0)
 					{
 						if (lowerThreshold <= sum.at<float>(cv::Point(pos.x, pos.y - 1)) &&
 							returnImg.at<unsigned char>(pos.y - 1, pos.x) != 64 &&
@@ -373,7 +990,7 @@ Mat MyCanny3(Mat src, int *thresholds,double edgePercent, double aperture_size) 
 							imageChanged = true;
 						}
 					}
-					if (pos.y<workImg.rows - 1)
+					if (pos.y < workImg.rows - 1)
 					{
 						if (lowerThreshold <= sum.at<float>(cv::Point(pos.x, pos.y + 1)) &&
 							returnImg.at<unsigned char>(pos.y + 1, pos.x) != 64 &&
@@ -404,767 +1021,243 @@ Mat MyCanny3(Mat src, int *thresholds,double edgePercent, double aperture_size) 
 	//imshow("des.pic", returnImg);
 	return returnImg;
 }
+void houghCircleOSTU(string in_path, string out_path, double edgePercent, double param2, int maxRadius, int minRadius, int minDist) {
+	//int minRadius = 0;
+	//double minDist = 40;
+	//int maxRadius = 55;
 
-void processVideos() {
-	string resourceFolder = "resource\\";
-	string imageFolder = resourceFolder + "source_img\\";
-	string videoFolder = resourceFolder + "video\\";
-	//string imageFromVideo = resourceFolder + "imgFromVideo\\";
-	string imageFromVideo = resourceFolder + "imgFromVideoROI\\";
-
-	vector<string> names;
-
-	glob(videoFolder + "*.*", names);
-
-	for (const auto & video_name : names) {
-		//cout << video_name << endl;
-		//string name = video_name.substr(0, name.find_last_of("."));
-		string name = video_name.substr(video_name.find_last_of("\\") + 1);
-		name = name.substr(0, name.find_last_of("."));
-		//cout << name << endl << endl;
-		string resultFolder = imageFromVideo + name + "\\";
-		makeDirectoty(resultFolder);
-
-		videoToImages(5, 01, video_name, resultFolder);
-
-	}
-	//makeDirectoty(dirName);
-	cout << "Finished." << endl;
-}
-
-
-void edgeForImage(double edgePercent) {
-	string resourceFolder = "resource\\";
-	//string imageFolder = resourceFolder + "source_img\\2019-02-25_12-05-26";
-	//2019-02-25_12-08-24
-	string imageFolder = resourceFolder + "source_img\\2019-02-25_12-08-24";
-	string videoFolder = resourceFolder + "video\\";
-	string imageFromVideo = resourceFolder + "imgFromVideo\\";
-	//string outFolder = resourceFolder + "imgWithEdge\\2019-02-25_12-05-26\\";
-	string outFolder = resourceFolder + "imgWithEdge\\2019-02-25_12-08-24\\";
-
-	outFolder = outFolder + "edgePercent" + to_string(int(edgePercent*100)) +  "%" + "\\";
-	cout << outFolder << endl;
-	makeDirectoty(outFolder);
-	//vector<string> folder_names;
-	//cout << imageFolder << endl;
-	//
-	////glob(imageFolder, folder_names);
-	////cout << folder_names[0] << endl;
-	//int i = 0;
-	//for (const auto & folder : folder_names) {
-	//	cout << folder << endl;
-	//	cout << " 1 " << endl;
-	//	Mat src = cv::imread(folder);
-	//	i++;
-	//	imshow("test", src);
-	//}
-	//cout << i << endl;
-	vector<string> names;
-
-	glob(imageFolder + "\\" + "*.*", names);
-	std::cout << "start" << endl;
-	int *thresholds = new int[2];
-	int upperThreshold;
-	int lowerThreshold;
-	
-	for (const auto& image_name : names) {
-		//int upperThreshold = 150;
-		//int lowerThreshold = 100;
-
-		string name = image_name.substr(image_name.find_last_of("\\") + 1);
-		name = name.substr(0, name.find_last_of("."));
-
-		//string thres = to_string(upperThreshold) + "_" + to_string(lowerThreshold);
-		//name = name + thres;
-
-		Mat src_image = imread(image_name);
-		//Mat des_image = MyCanny(src_image, upperThreshold, lowerThreshold);
-		
-		Mat des_image = MyCanny3(src_image,thresholds,edgePercent);
-
-		upperThreshold = thresholds[0];
-		lowerThreshold = thresholds[1];
-		string thres = to_string(lowerThreshold) + "_" + to_string(upperThreshold);
-		name = name +"_"+ thres;
-
-		//imshow("des.pic", des_image);
-		//waitKey();
-		std::cout << "finished one picture" << endl;
-		imwrite(outFolder + name + ".png", des_image);
-
-		//IplImage *theimg = cvLoadImage(image_name.c_str(), 1);
-		//IplImage *img_nor = NormalizeImage( theimg);
-		//cvShowImage("normalized img", img_nor);
-		//waitKey();
-	}
-	delete[]thresholds;
-	std::cout << "end" << endl;
-
-
-}
-
-void cutImage(int x1, int y1, int x2, int y2) {
-	Mat img = imread("resource\\test\\img_5.jpg");
-	//cout << img.rows 
-	cout << "success" << endl;
-	string fileName = "resource\\test\\info.txt";
-	//out.open("Hello.txt", ios::in | ios::out | ios::binary)
-	fstream fout;
-	if (_access("fileName", 0)) {
-		fout.open(fileName, ios::app);
-		
-	}
-	else {
-		cout << "file create" << endl;
-		fout.open(fileName, ios::out);
-		fout << img.cols << " " << img.rows << endl;
-		fout << "x1  " << "y1  " << "x2  " << "y2  " << endl;
-		
-	}
-	if (!fout.is_open()) {
-		cout << "fail to create the txt file!" << endl;
-		return;
-	}
-	
-	//Rect rect(720, 610,300,320);
-	//
-	//cout << img.cols << " " << img.rows << endl;
-	//fout << "sdsafds" << endl;
-	Rect rect(x1, y1, x2, y2);
-	
-	fout << x1 <<" " << y1 <<"  " << x2 << "  "<< y2 << endl;
-	Mat image_roi = img(rect);
-	//imshow("cutted image",image_roi);
-	//waitKey();
-	string  image_name = "resource\\test\\find2_y2\\test_" + to_string(x1) + "_" + to_string(y1) + "_" + to_string(x2) + "_" + to_string(y2) + ".jpg";
-	imwrite(image_name, image_roi);
-	fout.close();
-
-
-}
-void findROI() {
-	//Mat img = imread("resource\\test\\img_5.jpg");
-	//cout << img.rows << " "<<img.cols << endl;
-	cout << "start" << endl;
-	int x1 = 0;
-	int y1 = 0;
-	int x2 = 863;
-	int y2 = 687;
-	int i = 0;
-	//for (; x1 < 530, y1 < 190; x1 += 1, y1 += 1, i++) {
-	//	cout << "move "<< i << endl;
-	//	cutImage(x1, y1, x2, y2);
-	//}
-
-	//for (; x1 <= 530; x1 += 1,  i++) {
-	//	cout << "move " << i << endl;
-	//	cutImage(x1, y1, x2, y2);
-	//}
-
-	//for (; y1 <= 190;  y1 += 1, i++) {
-	//	cout << "move " << i << endl;
-	//	cutImage(x1, y1, x2, y2);
-	//}
-
-	//for (;x2 < 1920 - 530, y2 < 1080 - 186;x2 += 10, y2 += 10, i++) {
-	//	cout << "move " << i << endl;
-	//	cutImage(x1, y1, x2, y2);
-	//}
-
-	//cutImage(530, 186, 800, 690);
-
-	for (;y2 >= 660 ;y2 -= 1, i++) {
-		cout << "move " << i << endl;
-		cutImage(x1, y1, x2, y2);
-	}
-
-
-	cout << "end" << endl;
-}
-
-void applyHoughCircle() {
-	int max_radius = 55;
-	double param1 = 30;
-	double param2 = 100;
+	//double param2 = 100;
 	//Mat src;
 	Mat medianImg;
+	Mat gaussImg;
 	Mat grayImg;
 	Mat houghCirclesImg;
-	string res_path = "resource\\testSquareRes\\2019-02-25_12-08-24_ROI\\";
-	string out_path = "resource\\testSquareRes\\";
 	//string file_str[5] = { "2019-02-25_12-05-26_3","2019-02-25_12-08-24","2019-02-25_12-12-23","2019-02-25_12-17-49","2019-02-25_12-23-39" };
 	string file_name = "hough_circles_info.txt";
 
-	for (int i = 0; i < 1; i++) {
 
-		//string img_path = res_path + file_str[i] + "\\";
-		string img_path = res_path;
-
-
-		vector<string> names;
-
-		glob(img_path + "*.*", names);
-		//string saving_path = out_path + file_str[i]+"_param1" +to_string(int(param1))+"_param2" + to_string(int(param2))+ "\\" ;
-		string saving_path = out_path + "2019-02-25_12-08-24_houghCircle_param1_" + to_string(int(param1)) + "_param2_" + to_string(int(param2)) + "\\";
-		makeDirectoty(saving_path);
-		int count = 0;
-		fstream fout;
-		fout.open(saving_path + file_name,  ios::out );
-		if (!fout.is_open()) {
-			cout << "File opening error!" << endl;
-			return;
-		}
-		fout << "radius" << "  " << "pcircles[i][0]" << "  " << "pcircles[i][1]" << endl;
-
-		//int count2 = 0;
-		for (const auto & image_name : names) {
-			cout << "processing " << image_name << endl;
-			
-			//cout << "1" << endl;
-			string name = image_name.substr(image_name.find_last_of("\\") + 1);
-			name = name.substr(0, name.find_last_of("."));
-			string save_name = saving_path + name + ".jpg";
-			
-
-			Mat src = imread(image_name);
-
-			//fout << "img_1205" << endl;
-			//Mat src = imread("resource\\applyPyramid\\2019-02-25_12-05-26_1\\img_1205.jpg");
-			Mat workImg = src.clone();
-			if (src.empty()) {
-				cout << "fail to load Img" << endl;
-				return;
-			}
-
-
-			cvtColor(workImg, grayImg, CV_BGR2GRAY);
-			medianBlur(grayImg, medianImg, 3);
-
-			vector<Vec3f> pcircles;
-			HoughCircles(medianImg, pcircles, CV_HOUGH_GRADIENT, 1.5, 20, param1, param2, 0, max_radius);
-			//HoughCircles(medianImg, pcircles, CV_HOUGH_GRADIENT, 1.5, 84, 100.0, 100.0, 0, max_radius);
-			//HoughCircles(medianImg, pcircles, CV_HOUGH_GRADIENT, 1.5, 84);
-			cout << pcircles.size() << endl;
-			if (pcircles.size() != 0) 
-				fout << name << endl;
-			for (size_t i = 0; i < pcircles.size(); i++) {
-				int radius = cvRound(pcircles[i][2]);
-				
-				//fout << pcircles[i][2] << endl;
-				//if (radius > 45 || radius < 28)
-				//	continue;
-				Point center(cvRound(pcircles[i][0]), cvRound(pcircles[i][1]));
-				//if (pcircles.size() != 0 && radius <= 40 ) {
-				if (pcircles.size() != 0) {
-					fout << i + 1 << "  " << pcircles[i][2] << "  " << pcircles[i][0] << "  " << pcircles[i][1] << endl;
-					circle(src, center, 3, Scalar(0, 255, 0), -1, 8, 0);
-					circle(src, center, radius, Scalar(0, 255, 0), 3, 8, 0);
-					
-				}
-				
-			}
-			//imshow("result", src);
-			imwrite(save_name, src);
-			//if (count == 0)
-			//	break;
-		}
-		//if (count == 0)
-		//	return;
-		fout.close();
-	}
-	
-
-}
-void testHough() {
-	Mat src;
-	Mat medianImg;
-	Mat grayImg;
-	Mat houghCirclesImg;
-	string img_path = "resource\\imgFromVideoROI\\";
-	string out_path = "resource\\applyHough\\";
-	string resourceFolder = "resource\\";
-	//string imageFolder = resourceFolder + "source_img\\2019-02-25_12-05-26";
-	//2019-02-25_12-08-24
-	//string imageFolder = resourceFolder + "source_img\\2019-02-25_12-08-24";
-	string videoFolder = resourceFolder + "lastVideo\\";
+	//string img_path = res_path + file_str[i] + "\\";
+	string img_path = in_path;
 
 
 	vector<string> names;
-	//glob(img_path + "\\" + "*.*", names);
-	//vector<string> names;
 
-	glob(videoFolder + "*.*", names);
+	glob(img_path + "*.*", names);
+	//string saving_path = out_path + file_str[i]+"_param1" +to_string(int(param1))+"_param2" + to_string(int(param2))+ "\\" ;
+	string saving_path = out_path;
+	makeDirectoty(saving_path);
+	ofstream fout(saving_path + file_name, ios::out);
 
-	for (const auto & video_name : names) {
-		//cout << video_name << endl;
-		//string name = video_name.substr(0, name.find_last_of("."));
-		string name = video_name.substr(video_name.find_last_of("\\") + 1);
+	if (!fout.is_open()) {
+		cerr << "Error: " << strerror(errno) << endl;
+		return;
+	}
+
+	for (int j = 0; j < names.size(); j++) {
+		string image_name = names.at(j);
+		cout << "processing " << image_name << endl;
+
+
+		//cout << "1" << endl;
+		string name = image_name.substr(image_name.find_last_of("\\") + 1);
 		name = name.substr(0, name.find_last_of("."));
-		//cout << name << endl << endl;
-		string resultFolder = out_path + name + "\\";
-		makeDirectoty(resultFolder);
-
-		string imgPath = img_path + name + "\\";
-
-		//cout << "reading path " << imgPath << endl;
-		
-
-		vector<string> img_names;
-		glob(imgPath + "*.*", img_names);
-
-		for (const auto & image_name : img_names) {
-			cout << "processing " << image_name << endl;
-			//cout << "1" << endl;
-			string _name = image_name.substr(image_name.find_last_of("\\") + 1);
-			_name = _name.substr(0, _name.find_last_of("."));
+		string save_name = saving_path + name + ".jpg";
+		string save_name_gray = saving_path + "gray\\" + name + ".jpg";
 
 
-		//	int count = 0;
-		//	int min_dist = 10;
-		//	fstream fout;
-		//	//cout << "IMAGE_NAME  "<< imgPath << endl;
-		//	fout.open(out_path + name + "\\" + "info.txt", ios::app);
-		//	cout << out_path + name + "\\" + "info.txt" << endl;
-		//	if (!fout.is_open()) {
-		//		cout << "fail to open the txt file!" << endl;
-		//		return;
-		//	}
+		Mat src = imread(image_name);
 
-
-			src = imread(image_name);
-			if (src.empty()) {
-				cout << "fail to load Img" << endl;
-				return;
-			}
-
-
-			cvtColor(src, grayImg, CV_BGR2GRAY);
-			medianBlur(grayImg, medianImg, 3);
-
-		//	
-		//	for (;min_dist < 500;min_dist += 10) {
-		//		vector<Vec3f> pcircles;
-
-		//		Mat src_copy = src.clone();
-		//		//imshow("src_copy", src_copy);
-		//		//imshow("src", src);
-		//		waitKey();
-		//		HoughCircles(medianImg, pcircles, CV_HOUGH_GRADIENT, min_dist, 100);
-		//		cout << pcircles.size() << endl;
-		//		for (size_t i = 0; i < pcircles.size(); i++) {
-		//			Point center(cvRound(pcircles[i][0]), cvRound(pcircles[i][1]));
-		//			int radius = cvRound(pcircles[i][2]);
-		//			circle(src_copy, center, 3, Scalar(0, 255, 0), -1, 8, 0);
-		//			circle(src_copy, center, radius, Scalar(0, 255, 0), 3, 8, 0);
-		//		}
-
-		//		//namedWindow("circles", 0);
-		//		//imshow("circles", src);
-		//		string saving_path = out_path + "\\" + name + "\\" + _name +"_"+to_string(min_dist) +"_"+ ".jpg";
-		//		//cout << "saving path " << saving_path << endl;
-		//		fout << min_dist << "  " << pcircles.size() << endl;
-		//		imwrite(saving_path, src_copy);
-
-		//	}
-
-			vector<Vec3f> pcircles;
-
-			HoughCircles(medianImg, pcircles, CV_HOUGH_GRADIENT, 1.5, 84);
-			//cout << pcircles.size() << endl;
-			for (size_t i = 0; i < pcircles.size(); i++) {
-				Point center(cvRound(pcircles[i][0]), cvRound(pcircles[i][1]));
-				int radius = cvRound(pcircles[i][2]);
-				circle(src, center, 3, Scalar(0, 255, 0), -1, 8, 0);
-				circle(src, center, radius, Scalar(0, 255, 0), 3, 8, 0);
-			}
-
-			//namedWindow("circles", 0);
-			//imshow("circles", src);
-			string saving_path = out_path + "\\" + name + "\\" + _name + ".jpg";
-			//cout << "saving path " << saving_path << endl;
-			imwrite(saving_path, src);
-
-			//fout.close();
-			//if (count == 0)
-			//	return;
-
+		Mat workImg = src.clone();
+		if (workImg.empty()) {
+			cout << "fail to load Img" << endl;
+			return;
 		}
 
-	}
+		cvtColor(workImg, grayImg, CV_BGR2GRAY);
+		imwrite(save_name_gray, grayImg);
+		//imshow("gray", grayImg);
+		//medianBlur(grayImg, medianImg, 3);
+		cv::GaussianBlur(grayImg, gaussImg, cv::Size(5, 5), 1.4);
 
 
-	
-	//for (const auto & image_name : names) {
-	//	string name = image_name.substr(image_name.find_last_of("\\") + 1);
-	//	name = name.substr(0, name.find_last_of("."));
-	//	src = imread(image_name);
-	//	if (src.empty()) {
-	//		cout << "fail to load Img" << endl;
-	//		return;
-	//	}
 
-	//	//namedWindow("Input_Img");
-	//	//imshow("Input_Img", src);
-	//	cvtColor(src, grayImg, CV_BGR2GRAY);
-	//	medianBlur(grayImg, medianImg, 3);
-	//	//imshow("medianImg", medianImg);
+		int *thresholds = new int[2];
+		getThreshold(workImg, thresholds, edgePercent);
+		double param1 = thresholds[0];
+		//cout << thresholds[0] <<" "<< thresholds[1] << endl;
 
-	//	
-	//	//imshow("grayImg", grayImg);
-	//	vector<Vec3f> pcircles;
-
-	//	HoughCircles(medianImg, pcircles, CV_HOUGH_GRADIENT, 1.5, 10);
-	//	//cout << pcircles.size() << endl;
-	//	for (size_t i = 0; i < pcircles.size(); i++) {
-	//		Point center(cvRound(pcircles[i][0]), cvRound(pcircles[i][1]));
-	//		int radius = cvRound(pcircles[i][2]);
-	//		circle(src, center, 3, Scalar(0, 255, 0), -1, 8, 0);
-	//		circle(src, center, radius, Scalar(0, 255, 0), 3, 8, 0);
-	//	}
-
-	//	//namedWindow("circles", 0);
-	//	//imshow("circles", src);
-	//	imwrite(out_path+"\\" + name +".jpg", src);
-
-	//	//waitKey();
-	//}
-}
-
-void test_min_dist() {
-	Mat medianImg;
-	Mat grayImg;
-	int count = 0;
-	int min_dist = 10;
-	fstream fout;
-	//cout << "IMAGE_NAME  "<< imgPath << endl;
-	fout.open("resource\\test_min_dist_res\\info.txt", ios::app);
-	//cout << out_path + name + "\\" + "info.txt" << endl;
-	if (!fout.is_open()) {
-		cout << "fail to open the txt file!" << endl;
-		return;
-	}
-
-
-	Mat src = imread("resource\\test_min_dist\\img_283.jpg");
-	if (src.empty()) {
-		cout << "fail to load Img" << endl;
-		return;
-	}
-
-
-	cvtColor(src, grayImg, CV_BGR2GRAY);
-	medianBlur(grayImg, medianImg, 3);
-
-
-	for (;min_dist < 500;min_dist += 1) {
 		vector<Vec3f> pcircles;
 
-		Mat src_copy = src.clone();
-		//imshow("src_copy", src_copy);
-		//imshow("src", src);
-		waitKey();
-		HoughCircles(medianImg, pcircles, CV_HOUGH_GRADIENT, min_dist, 100);
-		cout << pcircles.size() << endl;
+		//int method, double dp, double minDist,
+		//	double param1 = 100, double param2 = 100,d
+		//	int minRadius = 0, int maxRadius = 0 
+
+
+		HoughCircles(gaussImg, pcircles, CV_HOUGH_GRADIENT, 1.5, minDist, param1, param2, minRadius, maxRadius);
+
+		if (pcircles.size() != 0) {
+			fout << name << endl;
+			fout << "method : CV_HOUGH_GRADIENT" << endl
+				<< "dp = " << 1.5 << endl
+				<< "minDist = " << minDist << endl
+				<< "param1 = " << param1 << endl
+				<< "param2 = " << param2 << endl
+				<< "minRadius = " << minRadius << endl
+				<< "maxRadius = " << maxRadius << endl
+				<< "radius" << "  " << "pcircles[i][0]" << "  " << "pcircles[i][1]" << endl;
+
+		}
+
 		for (size_t i = 0; i < pcircles.size(); i++) {
-			Point center(cvRound(pcircles[i][0]), cvRound(pcircles[i][1]));
 			int radius = cvRound(pcircles[i][2]);
-			circle(src_copy, center, 3, Scalar(0, 255, 0), -1, 8, 0);
-			circle(src_copy, center, radius, Scalar(0, 255, 0), 3, 8, 0);
+
+			//fout << pcircles[i][2] << endl;
+			//if (radius > 45 || radius < 28)
+			//	continue;
+			Point center(cvRound(pcircles[i][0]), cvRound(pcircles[i][1]));
+			//if (pcircles.size() != 0 && radius <= 40 ) {
+			if (pcircles.size() != 0) {
+				fout << i + 1 << "  " << pcircles[i][2] << "  " << pcircles[i][0] << "  " << pcircles[i][1] << endl;
+				circle(src, center, 3, Scalar(0, 255, 0), -1, 8, 0);
+				circle(src, center, radius, Scalar(0, 255, 0), 3, 8, 0);
+
+			}
+
 		}
 
-		//namedWindow("circles", 0);
-		//imshow("circles", src);
-		string saving_path = "resource\\test_min_dist_res\\img_283_" + to_string(min_dist) + "_" + ".jpg";
-		//cout << "saving path " << saving_path << endl;
-		fout << min_dist << "  " << pcircles.size() << endl;
-		imwrite(saving_path, src_copy);
+		//imshow("result", src);
+		delete[]thresholds;
+		//cout << "save name : " << save_name << endl;
+
+		imwrite(save_name, src);
+		fout << endl << endl;
+		//if (count == 0)
+		//	break;
 	}
+	//if (count == 0)
+	//	return;
+	fout.close();
 }
+void applyPyramid(string in_folder, string out_folder) {
+	vector<string> names;
+	glob(in_folder + "*.*", names);
+	string saving_path = out_folder;
+	makeDirectoty(saving_path);
+	for (int j = 0; j < names.size(); j++) {
+		string image_name = names.at(j);
+		cout << " processing " << image_name << endl;
+		string name = image_name.substr(image_name.find_last_of("\\") + 1);
+		name = name.substr(0, name.find_last_of("."));
+		string save_name = saving_path + name + ".jpg";
 
-
-void applyClahe() {
-	string res_path = "resource\\imgFromVideoROI\\";
-	string out_path = "resource\\applyClahe\\";
-	clock_t t0 = clock();
-	string file_str[5] = {"2019-02-25_12-05-26","2019-02-25_12-08-24","2019-02-25_12-12-23","2019-02-25_12-17-49","2019-02-25_12-23-39" };
-	for (int i = 0;i < 5;i++) {
-		string img_path = res_path + file_str[i] + "\\";
-		vector<string> names;
-
-		glob(img_path + "*.*", names);
-		string saving_path = out_path + file_str[i] + "\\";
-		makeDirectoty(saving_path);
-
-		for (const auto & image_name : names) {
-			clock_t t1 = clock();
-			string name = image_name.substr(image_name.find_last_of("\\") + 1);
-			name = name.substr(0, name.find_last_of("."));
-			string save_name = saving_path + name + ".jpg";
-
-			Mat img = imread(image_name);
-			if (!img.data) {
-				cout << "read image error" << endl;
-			}
-			//imshow("source", img);
-
-			Mat clahe_img;
-			cv::cvtColor(img, clahe_img, CV_BGR2Lab);
-			vector<Mat> channels(3);
-			cv::split(clahe_img, channels);
-
-			Ptr<CLAHE> clahe = createCLAHE();
-			//Ptr<HE> ahe = createHE();
-			clahe->setClipLimit(4.);
-			Mat dst;
-			clahe->apply(channels[0], dst);
-			dst.copyTo(channels[0]);
-
-			clahe->apply(channels[1], dst);
-			dst.copyTo(channels[1]);
-
-			clahe->apply(channels[2], dst);
-			dst.copyTo(channels[2]);
-
-			cv::merge(channels, clahe_img);
-
-			Mat image_clahe;
-			cv::cvtColor(clahe_img, image_clahe, CV_Lab2BGR);
-			//imshow("image clahe", image_clahe);
-			cv::imwrite(save_name, image_clahe);
-			clock_t t2 = clock();
-			clock_t t3 = (t2 - t1)*1.0 / CLOCKS_PER_SEC * 1000;
-			cout << "using time : " << t3 << endl;
+		Mat src = imread(image_name);
+		Mat workImg = src.clone();
+		if (workImg.empty()) {
+			cout << "fail to load Img" << endl;
+			return;
+		}
+		Mat dstImage;
 		
-		}
+		pyrDown(workImg, dstImage, Size(workImg.cols / 2, workImg.rows / 2));
+		//imshow("src", img);
+		//imshow("gray", gray);
+		//imshow("dst", dst);
+		imwrite(save_name, dstImage);
 
 	}
-	clock_t t4 = clock();
-	clock_t t5 = (t4 - t0)*1.0 / CLOCKS_PER_SEC * 1000;
-	cout << "using time for all picture : " << t5 << endl;
-	//Mat img = imread("resource\\");
-	//if (!img.data) {
-	//	cout << "read image error" << endl;
-	//}
-	//imshow("source", img);
-	//Mat clahe_img;
-	//cvtColor(img, clahe_img, CV_BGR2Lab);
-	//vector<Mat> channels(3);
-	//split(clahe_img, channels);
-
-	//Ptr<CLAHE> clahe = createCLAHE();
-	//clahe->setClipLimit(4.);
-	//Mat dst;
-	//clahe->apply(channels[0], dst);
-	//dst.copyTo(channels[0]);
-
-	//clahe->apply(channels[1], dst);
-	//dst.copyTo(channels[1]);
-
-	//clahe->apply(channels[2], dst);
-	//dst.copyTo(channels[2]);
-
-	//merge(channels, clahe_img);
-
-	//Mat image_clahe;
-	//cvtColor(clahe_img, image_clahe, CV_Lab2BGR);
-	//imshow("image clahe", image_clahe);
-	//imwrite("resource\\clahe_result\\img.jpg", image_clahe);
-	//waitKey();
-
 }
-
-void applyHoughLine() {
-	string res_path = "resource\\applyClahe\\";
-	string out_path = "resource\\applyHoughLine\\";
-	clock_t t0 = clock();
-	string file_str[5] = { "2019-02-25_12-05-26","2019-02-25_12-08-24","2019-02-25_12-12-23","2019-02-25_12-17-49","2019-02-25_12-23-39" };
-	for (int i = 0;i < 5;i++) {
-		string img_path = res_path + file_str[i] + "\\";
-		vector<string> names;
-
-		glob(img_path + "*.*", names);
-		string saving_path = out_path + file_str[i] + "\\";
-		makeDirectoty(saving_path);
-
-		for (const auto & image_name : names) {
-			clock_t t1 = clock();
-			string name = image_name.substr(image_name.find_last_of("\\") + 1);
-			name = name.substr(0, name.find_last_of("."));
-			string save_name = saving_path + name + ".jpg";
-
-			Mat img = imread(image_name);
-			Mat workImg = img.clone();
-			//workImg = 
-			if (!workImg.data) {
-				cout << "read image error" << endl;
-			}
-			Mat CannyImg;
-			//Mat Image = imread(img_name);
-			Canny(workImg, CannyImg, 140, 250, 3);
-			//imshow("CannyImg", CannyImg);
-
-			//Mat DstImg;
-			//cvtColor(workImg, DstImg, CV_GRAY2BGR);
-
-			vector<Vec4i> Lines;
-			HoughLinesP(CannyImg, Lines, 1, CV_PI / 360, 170, 30, 15);
-			for (size_t i = 0; i < Lines.size(); i++)
-			{
-				line(img, Point(Lines[i][0], Lines[i][1]), Point(Lines[i][2], Lines[i][3]), Scalar(0, 0, 255), 2, 8);
-			}
-			//imshow("HoughLines_Detect", DstImg);
-			imwrite(save_name, img);
-			clock_t t2 = clock();
-			cout << "using time : " << (t2 - t1)*1.0 / CLOCKS_PER_SEC << endl;
+void addOffset(string in_folder, string out_folder, double x, double y) {
+	fstream fin(in_folder, ios::in);
+	if (!fin.is_open()) {
+		cout << "file opening error" << endl;
+		return;
+	}
+	fstream fout(out_folder, ios::out);
+	if (!fout.is_open()) {
+		cout << "file opening error" << endl;
+		return;
+	}
+	while (!fin.eof()) {
+		string str[5];
+		for (int i = 0; i < 5; i++) {
+			fin >> str[i];
+		}
+		double str3 = stof(str[3]) + x;
+		str[3] = to_string(str3);
+		for (int i = 0; i < 5; i++) {
+			fout << str[i] << endl;
 		}
 	}
-	clock_t t3 = clock();
-	cout << "using time for all pic : " << (t3 - t0)*1.0 / CLOCKS_PER_SEC << endl;
-	//string img_name;
+	fin.close();
+	fout.close();
+}
+bool cmp(string a, string b) {
+	int pos1 = a.find_last_of("_") + 1;
+	int pos2 = a.find_last_of(".");
+	int lenght = pos2 - pos1;
+	a = a.substr(pos1, lenght);
+	int va = stoi(a);
 	
+	int posb1 = b.find_last_of("_") + 1;
+	int posb2 = b.find_last_of(".");
+	int lenght2 = posb2 - posb1;
+	b = b.substr(posb1, lenght2);
+	int vb = stoi(b);
 	
-	//Canny(Image, CannyImg, 140, 250, 3);
-	//imshow("CannyImg", CannyImg);
-
-	//Mat DstImg;
-	//cvtColor(Image, DstImg, CV_GRAY2BGR);
-
-	//vector<Vec4i> Lines;
-	//HoughLinesP(CannyImg, Lines, 1, CV_PI / 360, 170, 30, 15);
-	//for (size_t i = 0; i < Lines.size(); i++)
-	//{
-	//	line(DstImg, Point(Lines[i][0], Lines[i][1]), Point(Lines[i][2], Lines[i][3]), Scalar(0, 0, 255), 2, 8);
-	//}
-	//imshow("HoughLines_Detect", DstImg);
-	//imwrite("HoughLines_Detect.jpg", DstImg);
+	//cout << va <<" "<< vb << endl;
+	return va < vb;
 }
+void drawPoint() {
 
-void applyPyramid() {
-	string res_path = "resource\\applyClahe\\";
-	//string res_path = "resource\\applyPyramid\\";
-	string out_path = "resource\\applyPyramid\\";
-	clock_t t0 = clock();
-	string file_str[5] = { "2019-02-25_12-05-26","2019-02-25_12-08-24","2019-02-25_12-12-23","2019-02-25_12-17-49","2019-02-25_12-23-39" };
-	for (int i = 0;i < 1;i++) {
-		string img_path = res_path + file_str[i] + "\\";
-		vector<string> names;
-
-		glob(img_path + "*.*", names);
-		string saving_path = out_path + file_str[i] + "\\";
-		makeDirectoty(saving_path);
-		int count = 0;
-		for (const auto & image_name : names) {
-			clock_t t1 = clock();
-			string name = image_name.substr(image_name.find_last_of("\\") + 1);
-			name = name.substr(0, name.find_last_of("."));
-			string save_name = saving_path + name + ".jpg";
-
-			
-
-			Mat img = imread(image_name);
-			Mat workImg = img.clone();
-
-
-			//cout << image_name << endl;
-			//cout << workImg.cols << "   " << workImg.rows << endl;
-			//workImg = 
-			if (!workImg.data) {
-				cout << "read image error" << endl;
-			}
-			Mat dstImage;
-
-			
-			pyrDown(workImg, dstImage, Size(workImg.cols / 2, workImg.rows / 2));
-
-			//cout << workImg.cols << "   " << workImg.rows << endl;
-			//cout << dstImage.cols  << "   " << dstImage.rows << endl;
-			//if (count == 0)
-			//	return;
-			
-			//imwrite(save_name, dstImage);
-			imwrite("resource\\applyPyramid\\2019-02-25_12-05-26\\"+name+".jpg", dstImage);
-			clock_t t2 = clock();
-			cout << "using time : " << (t2 - t1)*1.0 / CLOCKS_PER_SEC << endl;
-		}
+	Mat img = imread("resource\\test\\pic\\img_1_points.jpg");
+	vector<Vec4f> points;
+	string filename = "resource\\test\\zvsets_3_all.txt";
+	//string filename = "resource\\test\\24points.txt";
+	fstream fin(filename, ios::in);
+	if (!fin.is_open()) {
+		cout << "file open error!" << endl;
+		return;
 	}
-	clock_t t3 = clock();
-	cout << "using time for all pic : " << (t3 - t0)*1.0 / CLOCKS_PER_SEC << endl;
 
 
-
-
-
-	//string image_name;
-	//Mat img = imread(image_name);
-	//Mat workImg = img.clone();
-	////workImg = 
-	//if (!workImg.data) {
-	//	cout << "read image error" << endl;
-	//}
-	//Mat dstImage;
-	//pyrDown(workImg, dstImage, Size(workImg.cols / 2, workImg.rows / 2));
-	//imwrite(save_name, img);
-
-}
-
-void findSquare() {
-	string res_path = "resource\\test\\testSquare\\";
-
-	string out_path = "resource\\testSquareRes\\";
-	clock_t t0 = clock();
-	string file_str[5] = { "2019-02-25_12-08-24","2019-02-25_12-05-26","2019-02-25_12-12-23","2019-02-25_12-17-49","2019-02-25_12-23-39" };
-	for (int i = 0;i < 1;i++) {
-		string img_path = res_path + file_str[i] + "\\";
-		vector<string> names;
-
-		glob(img_path + "*.*", names);
-		string saving_path = out_path + file_str[i] + "\\";
-
-		string saving_path1 = out_path + file_str[i] + "_ROI\\";
-		string saving_path2 = out_path + file_str[i] + "_square\\";
-
-		makeDirectoty(saving_path1);
-		makeDirectoty(saving_path2);
-		int count = 0;
-		for (const auto & image_name : names) {
-			clock_t t1 = clock();
-			string name = image_name.substr(image_name.find_last_of("\\") + 1);
-			name = name.substr(0, name.find_last_of("."));
-			string save_name1 = saving_path1 + name + ".jpg";
-			string save_name2 = saving_path2 + name + ".jpg";
-
-
-
-			Mat img = imread(image_name);
-			Mat workImg = img.clone();
-			if (!workImg.data) {
-				cout << "read image error" << endl;
-			}
-			//Mat dstImage;
-
-			Rect select;
-			select.x = 300;
-			select.y = 30;
-			select.width = 400;
-			select.height = 250;
-
-			rectangle(workImg, select, Scalar(0, 0, 255), 3, 8, 0);
-
-			Mat dstImage = img(select);
-			//imshow("cutted image",image_roi);
-			//waitKey();
-			//string  image_name = "resource\\test\\find2_y2\\test_" + to_string(x1) + "_" + to_string(y1) + "_" + to_string(x2) + "_" + to_string(y2) + ".jpg";
-			imwrite(save_name1, dstImage);
-			
-			imwrite(save_name2, workImg);
-			clock_t t2 = clock();
-			cout << "using time : " << (t2 - t1)*1.0 / CLOCKS_PER_SEC << endl;
-		}
+	while (!fin.eof()) {
+		float num, x, y, z;
+		fin >> num >> x >> y >> z;
+		//x = x + x_offset;
+		//y = y + y_offset;
+		Vec4f point(num,x,y,z);
+		points.push_back(point);
 	}
-	clock_t t3 = clock();
-	cout << "using time for all pic : " << (t3 - t0)*1.0 / CLOCKS_PER_SEC << endl;
+	fin.close();
+	//img.setTo(255);  
+	Point p2(0,0);
+	//464 186 115 76 -71.9693
+	float x_offset = 464;
+	float y_offset = 186;
+	Point center(464, 186);
+	CvSize size;
+	size.width = 115;
+	size.height = 76;
+	float angle =  -71.9693;
+	ellipse(img, Point(0,0), size,
+		0, 0, 360,
+		Scalar(0, 0, 255), 5, CV_AA, 0);
+	circle(img, p2, 10, Scalar(255, 0, 0), -1, 8, 0);
+	//circle(img, center, size.width, Scalar(255, 0, 0), 3, 8, 0);
+	//circle(img, center, size.height, Scalar(255, 100, 80), 3, 8, 0);
+	//				circle(src, center, radius, Scalar(0, 255, 0), 3, 8, 0);
+	for (int i = 0; i < points.size();i++) {
+		//Point p1(points[i][1]+x_offset, points[i][2] + y_offset);
+		Point p1(points[i][1], points[i][2] );
+		cout<<i<<"  " << points[i][1] << " " << points[i][2] << endl;
+		circle(img, p1, 3, Scalar(0, 0, 255), -1, 8, 0);
+	}
+	//Point p1(100, 100);      
+	//circle(img, p1, 3, Scalar(0, 255, 0), -1, 8, 0);
 
-
+	imshow("drawBroad", img);
+	string save_name = "resource\\test\\pic\\img_ellipse_24.jpg";
+	imwrite(save_name, img);
+	waitKey(0);
 
 }
