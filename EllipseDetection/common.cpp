@@ -476,27 +476,17 @@ void detectEllipsedir(string in_path,string out_path, int slider_pos) {
 			return;
 		workImg01 = cvCloneImage(src);
 		workImg02 = cvCloneImage(src);
-		workImg03 = cvCloneImage(src);
-		//Mat src = imread(image_name);
-		//Mat workImg01 = src.clone();
-		//Mat *workImg02 = src.clone();
-		//Mat *workImg03 = src.clone();
-
-
-		
+		workImg03 = cvCloneImage(src);	
 		int *thresholds = new int[2];
 		double edgePercent = 0.3;
 		getThreshold(src, thresholds, edgePercent);
 		double param1 = thresholds[0];
-		//int slider_pos = param1;
-		//int slider_pos = 57;
 		delete[]thresholds;
 
 		stor = cvCreateMemStorage(0);
 		cont = cvCreateSeq(CV_SEQ_ELTYPE_POINT, sizeof(CvSeq), sizeof(CvPoint), stor);
 
 		cvThreshold(workImg03, workImg02, slider_pos, 255, CV_THRESH_BINARY);
-		//IplImage(workImg02)
 		cvFindContours(workImg02, stor, &cont, sizeof(CvContour), CV_RETR_LIST, CV_CHAIN_APPROX_NONE, cvPoint(0, 0));
 		for (;cont;cont = cont->h_next) {
 			int i;
@@ -553,7 +543,90 @@ void detectEllipsedir(string in_path,string out_path, int slider_pos) {
 	fout.close();
 
 }
+void detectEllipsedirUPDATE(string in_path, string out_path, string outTXTfile, int slider_pos) {
+	string img_path = in_path + "\\";
+	cout << img_path << endl;
 
+	vector<string> names;
+
+	glob(img_path + "*.*", names);
+	sort(names.begin(), names.end(), cmp);
+	string saving_path = out_path;
+	makeDirectoty(saving_path);
+
+	ofstream fout(outTXTfile, ios::out);
+	cout << names.size() << endl;
+	if (!fout.is_open()) {
+		cout << "Error opening the file!" << endl;
+		return;
+	}
+	//return;
+	for (int j = 0; j < names.size(); j++) {
+		string image_name = names.at(j);
+		cout << "processing " << image_name << endl;
+		string name = image_name.substr(image_name.find_last_of("\\") + 1);
+		name = name.substr(0, name.find_last_of("."));
+		string save_name = saving_path + name + ".jpg";
+		fout << name << endl;
+
+		int pos = name.find_last_of('_') + 1;
+		string num_name = name.substr(pos, name.size() - pos + 1);
+		vector<vector<cv::Point>> contours;
+		Mat src = imread(image_name,0);
+		Mat workImg01 = imread(image_name);
+		Mat workImg02 ;
+		Mat workImg03 = src.clone();
+
+
+
+		int *thresholds = new int[2];
+		double edgePercent = 0.3;
+		getThreshold(src, thresholds, edgePercent);
+		double param1 = thresholds[0];
+
+		delete[]thresholds;
+
+		cv::threshold(workImg03, workImg02, slider_pos, 255, CV_THRESH_BINARY);
+		findContours(workImg02, contours, cv::noArray(), cv::RETR_LIST, cv::CHAIN_APPROX_SIMPLE);
+		int leap = 0;
+		for (int i = 0;i < contours.size();i++) {
+			//int i;
+			int count = contours[i].size();
+			CvPoint center;
+			CvSize size;
+			if (count < 6) {
+				continue;
+			}
+			leap = 1;
+
+			cv::RotatedRect ellipse = fitEllipse(contours[i]);
+
+			center = ellipse.center;
+			center.x = cvRound(center.x);
+			center.y = cvRound(center.y);
+
+			size = ellipse.size;
+			size.width = cvRound(size.width);
+			size.height = cvRound(size.height);
+			float angle = ellipse.angle;
+
+			if (size.width <= 50 || size.width > 100) {
+				continue;
+			}
+
+			cout << size.width << " " << size.height << " " << angle << endl;
+			fout << center.x << " " << center.y << " " << size.height << " " << size.width << " " << angle << endl;
+			cv::ellipse(workImg01, center, size,
+				angle, 0, 360,
+				CV_RGB(255, 255, 0), 5, CV_AA, 0);
+			cv::imwrite(save_name, workImg01);
+		}
+		if (leap == 0) {
+			imwrite(save_name, workImg01);
+		}
+	}
+	fout.close();
+}
 
 void makeDirectoty(string dirName) {
 	if (_access(dirName.c_str(), 0) == -1)

@@ -24,16 +24,41 @@ const decltype(a.width) minwidth = 30;  //if you dont know the type of width
 
 int slider_pos = 30;
 
-IplImage *image02 = 0, *image03 = 0, *image04 = 0, *image05 = 0;
 void process_image(int h);
 void taskbarActivity();
+void on_trackbar(int, void*);
+int g_thresh = 100;
+cv::Mat g_gray, g_binary,g_original;
 int main(int argc, char** argv)
 {
+	//taskbarActivity();
+	//vector<int> a;
+	//for (int i = 0; i < 10;i++) {
+	//	a.push_back(i);
+	//}
+	//for (int i = 0; i < a.size();i++) {
+	//	cout << a[i] << " ";
+	//}
+	//cout << endl;
+	//a.clear();
+	//cout << "a.size = " << a.size() << endl;
+
+
+
+
 	CGenerateObj generator;
 	string infile = "resource\\test\\ellipse_info_test.txt";
 	string outfile = "resource\\test\\vsets.txt";
 	//cout << sin(30) << endl;
-	generator.getMeshEllipse();
+	//generator.getMeshEllipse();
+	vector<Vec6f> one_ellipse;
+	vector<Vec6f> left_ellipse;
+	vector<Vec6f> right_ellipse;
+	vector<string> imgNameSet;
+	//string name = 
+	//generator.getEllipseInfoOne(infile,one_ellipse,);
+	//generator.getEllipseInfoTwo();
+	generator.two_Ellipse_TEST();//90909-
 	//drawPoint();
 	//taskbarActivity();
 	//const char* filename = rgc == 2 ? argv[1] : (char*)"2.jpg";
@@ -52,6 +77,16 @@ int main(int argc, char** argv)
 	//	detectEllipsedir(in_path, out_dir,i );
 		//cvEllipse
 	//}
+
+
+	//string in_path = "C:\\Users\\guixi\\Documents\\AVesselReconstructionResult\\2019-5-15\\2019-5-15_19-42-45\\apply_clahe\\";
+	//string out_path = "resource\\test\\2019-5-33_33-33-33\\";
+	//makeDirectoty(out_path);
+	//string outTXTfile = out_path + "info.txt";
+	//string out_dir = out_path + "ellipse_detection\\";
+	//makeDirectoty(out_dir);
+	//int slider_pos = 28;
+	//detectEllipsedirUPDATE( in_path, out_dir, outTXTfile,  slider_pos);
 	
 	
 	system("pause");
@@ -60,112 +95,139 @@ int main(int argc, char** argv)
 
 // Define trackbar callback functon. This function find contours,
 // draw it and approximate it by ellipses.
-void taskbarActivity() {
-	//string filename = "C:\\Users\\guixi\\Documents\\AVesselReconstructionResult\\2019-5-7\\2019-5-7_10-49-44\\image_roi\\img_2.jpg";
-	string filename = "resource\\imageMarch\\ROI_CLAHE\\oneImage\\2019-03-18_12-36-12\\img_34.jpg";
-	if ((image03 = cvLoadImage(filename.c_str(), 0)) == 0)
-		return ;
+void on_trackbar(int, void*) {
+	string image_name = "C:\\Users\\guixi\\Documents\\AVesselReconstructionResult\\2019-5-15\\2019-5-15_19-42-45\\apply_clahe\\img_1.jpg";
+	g_original = imread(image_name);
+	cv::threshold(g_gray,g_binary,g_thresh,255,cv::THRESH_BINARY);
+	vector<vector<cv::Point>> contours;
+	cv::findContours(g_binary,contours,cv::noArray(),cv::RETR_LIST,cv::CHAIN_APPROX_SIMPLE);
+	g_binary = cv::Scalar::all(0);
+	drawContours(g_binary, contours, -1, cv::Scalar::all(255));
+	for (int i = 0;i < contours.size();i++) {
 
-	// Create the destination images
-	image02 = cvCloneImage(image03);
-	image04 = cvCloneImage(image03);
-	image05 = cvCloneImage(image03);
-
-	// Create windows.
-	cvNamedWindow("Source", 1);
-	cvNamedWindow("Result", 1);
-
-	// Show the image.
-	cvShowImage("Source", image03);
-
-	// Create toolbars. HighGUI use.
-	cvCreateTrackbar("Threshold", "Result", &slider_pos, 255, process_image);
-
-	process_image(0);
-
-	// Wait for a key stroke; the same function arranges events processing                
-	cvWaitKey(0);
-	cvReleaseImage(&image02);
-	cvReleaseImage(&image03);
-
-	cvDestroyWindow("Source");
-	cvDestroyWindow("Result");
-
-}
-void process_image(int h)
-{
-	CvMemStorage *stor;
-	CvSeq *cont;
-	CvBox2D32f *box;
-	CvPoint *PointArray;
-	CvPoint2D32f *PointArray2D32f;
-
-	stor = cvCreateMemStorage(0);
-	cont = cvCreateSeq(CV_SEQ_ELTYPE_POINT, sizeof(CvSeq), sizeof(CvPoint), stor);
-
-	cvThreshold(image03, image02, slider_pos, 255, CV_THRESH_BINARY);
-
-	cvFindContours(image02, stor, &cont, sizeof(CvContour),
-		CV_RETR_LIST, CV_CHAIN_APPROX_NONE, cvPoint(0, 0));
-
-	cvZero(image02);
-	cvZero(image04);
-
-	//绘制所有轮廓并用椭圆拟合
-	for (;cont;cont = cont->h_next)
-	{
-		int i;
-		int count = cont->total;//轮廓个数
+		int count = contours[i].size();
 		CvPoint center;
 		CvSize size;
-
-		/*个数必须大于6，这是cvFitEllipse_32f的要求*/
-		if (count<6)
-		{
+		if (count < 6) {
 			continue;
 		}
-
-		//分配内存给点集
-		PointArray = (CvPoint *)malloc(count * sizeof(CvPoint));
-		PointArray2D32f = (CvPoint2D32f*)malloc(count * sizeof(CvPoint2D32f));
-
-		//分配内存给椭圆数据
-		box = (CvBox2D32f *)malloc(sizeof(CvBox2D32f));
-
-		//得到点集（这个方法值得借鉴）
-		cvCvtSeqToArray(cont, PointArray, CV_WHOLE_SEQ);
-
-		//将CvPoint点集转化为CvBox2D32f集合
-		for (i = 0;i<count;i++)
-		{
-			PointArray2D32f[i].x = (float)PointArray[i].x;
-			PointArray2D32f[i].y = (float)PointArray[i].y;
+		RotatedRect box = fitEllipse(contours[i]);
+		//box.
+		if (box.size.width < 30 || box.size.width > 100) {
+			continue;
 		}
+		ellipse(g_original, box, Scalar(0, 0, 255), 1, CV_AA);
 
-		//拟合当前轮廓
-		cvFitEllipse(PointArray2D32f, count, box);
-
-		//绘制当前轮廓
-		cvDrawContours(image04, cont, CV_RGB(255, 255, 255), CV_RGB(255, 255, 255),
-			0, 1, 8, cvPoint(0, 0));
-
-		//将椭圆数据从浮点转化为整数表示
-		center.x = cvRound(box->center.x);
-		center.y = cvRound(box->center.y);
-		size.width = cvRound(box->size.width*0.5);
-		size.height = cvRound(box->size.height*0.5);
-		box->angle = -box->angle;
-
-		//画椭圆
-		cvEllipse(image04, center, size, box->angle, 0, 360, CV_RGB(0, 0, 255), 1, CV_AA, 0);
-
-		free(PointArray);
-		free(PointArray2D32f);
-		free(box);
+		//cv::RotatedRect ellipse = fitEllipse(contours[i]);
+		//center = ellipse.center;
+		//center.x = cvRound(ellipse.center.x);
+		//center.y = cvRound(ellipse.center.y);
+		////size = ellipse.size;
+		//size.width = cvRound(ellipse.size.width);
+		//size.height = cvRound(ellipse.size.height);
+		//if (size.width < 30 || size.width > 100) {
+		//	continue;
+		//}
+		//float angle = -ellipse.angle;
+		//cout << size.width << " " << size.height << " " << angle << endl;
+		//cv::ellipse(g_original, center, size,
+		//	angle, 0, 360,
+		//	CV_RGB(0, 0, 255), 1, CV_AA, 0);
 	}
-	cvShowImage("Result", image04);
+	imshow("Contour_binary", g_binary);
+	imshow("Contours", g_original);
+}
+void taskbarActivity() {
+	//string filename = "C:\\Users\\guixi\\Documents\\AVesselReconstructionResult\\2019-5-7\\2019-5-7_10-49-44\\image_roi\\img_2.jpg";
+	string image_name = "resource\\imageMarch\\ROI_CLAHE\\oneImage\\2019-03-18_12-36-12\\img_34.jpg";
+
+
+	// Create the destination images
+	vector<vector<cv::Point>> contours;
+	g_gray = imread(image_name, 0);
+	g_original = imread(image_name);
+	cv::namedWindow("Contours", 1);
+	createTrackbar("Threshold", "Contours", &g_thresh, 255, on_trackbar);
+	on_trackbar(0, 0);
+	cv::waitKey();
+	return ;
+
 
 }
+//void process_image(int h)
+//{
+//	CvMemStorage *stor;
+//	CvSeq *cont;
+//	CvBox2D32f *box;
+//	CvPoint *PointArray;
+//	CvPoint2D32f *PointArray2D32f;
+//
+//	stor = cvCreateMemStorage(0);
+//	cont = cvCreateSeq(CV_SEQ_ELTYPE_POINT, sizeof(CvSeq), sizeof(CvPoint), stor);
+//
+//	cvThreshold(image03, image02, slider_pos, 255, CV_THRESH_BINARY);
+//
+//	cvFindContours(image02, stor, &cont, sizeof(CvContour),
+//		CV_RETR_LIST, CV_CHAIN_APPROX_NONE, cvPoint(0, 0));
+//
+//	cvZero(image02);
+//	cvZero(image04);
+//
+//	//绘制所有轮廓并用椭圆拟合
+//	for (;cont;cont = cont->h_next)
+//	{
+//		int i;
+//		int count = cont->total;//轮廓个数
+//		CvPoint center;
+//		CvSize size;
+//
+//		/*个数必须大于6，这是cvFitEllipse_32f的要求*/
+//		if (count<6)
+//		{
+//			continue;
+//		}
+//
+//		//分配内存给点集
+//		PointArray = (CvPoint *)malloc(count * sizeof(CvPoint));
+//		PointArray2D32f = (CvPoint2D32f*)malloc(count * sizeof(CvPoint2D32f));
+//
+//		//分配内存给椭圆数据
+//		box = (CvBox2D32f *)malloc(sizeof(CvBox2D32f));
+//
+//		//得到点集（这个方法值得借鉴）
+//		cvCvtSeqToArray(cont, PointArray, CV_WHOLE_SEQ);
+//
+//		//将CvPoint点集转化为CvBox2D32f集合
+//		for (i = 0;i<count;i++)
+//		{
+//			PointArray2D32f[i].x = (float)PointArray[i].x;
+//			PointArray2D32f[i].y = (float)PointArray[i].y;
+//		}
+//
+//		//拟合当前轮廓
+//		cvFitEllipse(PointArray2D32f, count, box);
+//
+//		//绘制当前轮廓
+//		cvDrawContours(image04, cont, CV_RGB(255, 255, 255), CV_RGB(255, 255, 255),
+//			0, 1, 8, cvPoint(0, 0));
+//
+//		//将椭圆数据从浮点转化为整数表示
+//		center.x = cvRound(box->center.x);
+//		center.y = cvRound(box->center.y);
+//		size.width = cvRound(box->size.width*0.5);
+//		size.height = cvRound(box->size.height*0.5);
+//		box->angle = -box->angle;
+//
+//		//画椭圆
+//		cvEllipse(image04, center, size, box->angle, 0, 360, CV_RGB(0, 0, 255), 1, CV_AA, 0);
+//
+//		free(PointArray);
+//		free(PointArray2D32f);
+//		free(box);
+//	}
+//	cvShowImage("Result", image04);
+//
+//}
 
 //double threshold1 = 50;
 //double threshold2 = 150;

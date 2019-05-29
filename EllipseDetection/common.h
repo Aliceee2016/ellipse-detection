@@ -31,7 +31,9 @@ void applyPyramid(string in_folder, string out_folder);
 void cutImage(string in_folder, string out_folder, int x, int y, int width, int height);
 bool cmp(string a, string b);
 void addOffset(string in_folder, string out_folder, double x, double y);
+
 void detectEllipsedir(string in_path, string out_path, int slider_pos);
+void detectEllipsedirUPDATE(string in_path, string out_path, string outTXTfile, int slider_pos);
 
 void drawPoint();
 
